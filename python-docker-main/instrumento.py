@@ -1,0 +1,163 @@
+"""
+    Nombre: Luna Cantero Angel Ivan
+    ejercicio: Instrumento
+    fecha: 14/08/2023
+"""
+from flask import Flask, jsonify, request
+import bcrypt
+import mysql.connector
+
+app = Flask(__name__)
+
+# Configuracion de la conexión a la base de datos
+conexion = {
+    'host': '192.168.1.6',
+    'user': 'ang',
+    'password': 'Luca',
+    'database': 'School_db'
+}
+
+connection = mysql.connector.connect(**conexion)
+
+@app.get('/usuarios')
+def get_usuarios():
+    # Recuperar usuarios de la base de datos
+    query = "SELECT * FROM usuarios"
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute(query)
+    usuarios = cursor.fetchall()
+    cursor.close()
+
+    return jsonify(usuarios), 200
+
+@app.post('/usuarios')
+def add_usuarios():
+    datos = request.get_json()
+    username = datos['Usuario']
+
+    # Verificar si el usuario ya existe en la base de datos
+    query = "SELECT * FROM usuarios WHERE Usuario = %s"
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute(query, (username,))
+    existing_user = cursor.fetchone()
+
+    if existing_user:
+        return {'error': 'Usuario existente'}, 201
+
+    # Validar la contraseña
+    passwd = datos['Passwd']
+    if len(passwd) < 8:
+        return {'error': 'La contraseña debe tener al menos 8 caracteres'}, 400
+    if not any(c.isupper() for c in passwd):
+        return {'error': 'La contraseña debe contener al menos una letra mayuscula'}, 400
+    if not any(char in "¡”#$%&/(()" for char in passwd):
+        return {'error': 'La contraseña debe contener al menos un signo especial'}, 400
+    
+    # Hash de la contraseña
+    hashed_pass = bcrypt.hashpw(datos['Passwd'].encode('utf-8'), bcrypt.gensalt())
+    hashed_pass_str = hashed_pass.decode('utf-8')
+
+    # Insertar el nuevo usuario en la base de datos
+    insert_query = "INSERT INTO usuarios (Usuario, Passwd) VALUES (%s, %s)"
+    cursor.execute(insert_query, (username, hashed_pass_str))
+    connection.commit()
+    cursor.close()
+
+    return {'success': 'Usuario agregado'}, 201
+
+@app.post('/login')
+def login_usuarios():
+    datos = request.get_json()
+    username = datos['Usuario'] 
+    password = datos['Passwd']
+
+    # Recuperar la contraseña hash del usuario desde la base de datos
+    query = "SELECT Passwd FROM usuarios WHERE Usuario = %s"
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute(query, (username,))
+    user = cursor.fetchone()
+    cursor.close()
+
+    if user and bcrypt.checkpw(password.encode('utf-8'), user['Passwd'].encode('utf-8')):
+        return {'success': 'Inicio de sesión exitoso'}, 200
+
+    return {'error': 'Credenciales inválidas'}, 401
+
+'''#######################################################################################################'''
+@app.get('/info')
+def get_info():
+    try:
+        # Recuperar información de la tabla info
+        query = "SELECT * FROM info"
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(query)
+        info = cursor.fetchall()
+        cursor.close()
+
+        return jsonify(info), 200
+    except Exception as e:
+        return {'error': 'Error de conexión'}, 500
+
+@app.post('/info')
+def add_info():
+    try:
+        datos = request.get_json()
+
+        # Validar campos requeridos
+        required_fields = ['nombre', 'apellido']
+        for field in required_fields:
+            if field not in datos:
+                return {'error': f'Campo obligatorio faltante: {field}'}, 400
+
+        nombre = datos['nombre']
+        apellido = datos['apellido']
+
+        # Insertar la nueva información en la base de datos
+        insert_query = "INSERT INTO info (nombre, apellido, edad, genero, telefono, area, modalidad) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+        cursor = connection.cursor()
+        cursor.execute(insert_query, (nombre, apellido, datos.get('edad'), datos.get('genero'), datos.get('telefono'), datos.get('area'), datos.get('modalidad')))
+        connection.commit()
+        cursor.close()
+
+        return {'success': 'Información agregada'}, 201
+    except Exception as e:
+        return {'error': 'Error de conexión'}, 500
+
+####################################################################################
+
+@app.get('/materia')
+def get_materias():
+    try:
+        # Recuperar información de la tabla materia
+        query = "SELECT * FROM materias"
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(query)
+        info = cursor.fetchall()
+        cursor.close()
+
+        return jsonify(info), 200
+    except Exception as e:
+        return {'error': 'Error de conexión'}, 500
+
+@app.post('/materia')
+def add_materia():
+    try:
+        datos = request.get_json()
+
+        # Validar campos requeridos
+        required_fields = ['materia', 'profesor']
+        for field in required_fields:
+            if field not in datos:
+                return {'error': f'Campo obligatorio faltante: {field}'}, 400
+        materia = datos['materia']
+        profesor = datos['profesor']
+
+        # Insertar la nueva información en la base de datos
+        insert_query = "INSERT INTO materias (materia, profesor, aula, calificacion, horario, descripcion, clave_alu) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+        cursor = connection.cursor()
+        cursor.execute(insert_query, (materia, profesor, datos.get('aula'), datos.get('calificacion'), datos.get('horario'), datos.get('descripcion'), datos.get('clave_alu')))
+        connection.commit()
+        cursor.close()
+        return {'success': 'Información agregada'}, 201
+    except Exception as e:
+        return {'error': 'Error de conexión'}, 500
