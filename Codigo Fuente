@@ -1,7 +1,7 @@
 """
     Nombre: Luna Cantero Angel Ivan
     ejercicio: Instrumento
-    fecha: 014/08/2023
+    fecha: 14/08/2023
 """
 from flask import Flask, jsonify, request
 import bcrypt
@@ -11,8 +11,8 @@ app = Flask(__name__)
 
 # Configuracion de la conexión a la base de datos
 conexion = {
-    'host': 'localhost',
-    'user': 'root',
+    'host': '192.168.1.6',
+    'user': 'ang',
     'password': 'Luca',
     'database': 'School_db'
 }
